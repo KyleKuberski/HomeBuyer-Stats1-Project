@@ -18,24 +18,74 @@ PROC CONTENTS DATA=houses; RUN;
 
 
 %web_open_table(houses);
-
+/*____________________________________________________________________________ */
+/*View data */
 proc print data= houses;
 run;
 
-/* Step 1: Filter the data to include only the specified neighborhoods */
+/* Filtering the data to include only needed neighborhoods*/
 data filtered_houses;
     set houses;
     where Neighborhood in ("NAmes", "Edwards", "BrkSide");
 run;
 
-/* Step 2: Create a new variable 'GrLivArea_100' for GrLivArea in increments of 100 sq. ft. */
+/* Start by plotting the data */
+proc sort data=filtered_houses;
+by Neighborhood;
+run;
+
+proc sgplot data=filtered_houses;
+    title "Scatter Plot of SalePrice vs GrLivArea by Neighborhood";
+    scatter x=GrLivArea y=SalePrice / group=Neighborhood;
+    xaxis label="Living Area SqFt";
+    yaxis label="Sales Price";
+    by Neighborhood;
+run;
+
+/* Creating a new variable 'GrLivArea_100' for GrLivArea in increments of 100 sq. ft. */
 data filtered_houses;
     set filtered_houses;
     GrLivArea_100 = floor(GrLivArea / 100) * 100;
 run;
 
-/* Step 3: Set "NAmes" as the reference level for the 'Neighborhood' variable */
+/* Fit a multiple linear regression model with interaction term */
 proc glm data=filtered_houses plots=all;
-    class Neighborhood(ref="NAmes"); /* Set "NAmes" as the reference level */
-    model SalePrice = GrLivArea_100 Neighborhood / solution;
+    class Neighborhood;
+    model SalePrice = GrLivArea_100 Neighborhood GrLivArea_100*Neighborhood / solution;
 run;
+
+/*We see some points with massive leverage, outliers in residuals, and influence around ~350 on our Cook's D */
+	/*Due to this we are going to attempt some log transformations*/
+
+/* Creating a new variable for the log transformation of GrLivArea (GrLivArea_log) */
+data filtered_houses;
+    set filtered_houses;
+    GrLivArea_log = log(GrLivArea);
+run;
+
+/* multiple linear regression model with the log-transformed GrLivArea */
+proc glm data=filtered_houses plots=all;
+    class Neighborhood;
+    model SalePrice = GrLivArea_log Neighborhood GrLivArea_log*Neighborhood / solution;
+run;
+
+/*Still seeing similar results, lets try a log transformation on just the salesprice*/
+data filtered_houses;
+    set filtered_houses;
+    SalePrice_log = log(SalePrice);
+run;
+
+/* multiple linear regression model with the log-transformed GrLivArea */
+proc glm data=filtered_houses plots=all;
+    class Neighborhood;
+    model SalePrice_log = GrLivArea Neighborhood GrLivArea*Neighborhood / solution;
+run;
+
+/*Still seeing similar results, lets try a log-log transformation */
+
+/* multiple linear regression model with the log-log data*/
+proc glm data=filtered_houses plots=all;
+    class Neighborhood;
+    model SalePrice_log = GrLivArea_log Neighborhood GrLivArea_log*Neighborhood / solution;
+run;
+
