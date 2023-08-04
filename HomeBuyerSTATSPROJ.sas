@@ -58,12 +58,63 @@ by Neighborhood;
 matrix logSalePrice logGrLiv;
 run;
 
+
+
+
+
+/*WORKING MODEL*/
 /* Fit the model */
 proc glm data = loghouses plots=all;
-class Neighborhood;
-model logSalePrice = logGrLiv Neighborhood / solution clparm;
+class Neighborhood (REF = "BrkSide");
+model logSalePrice = logGrLiv Neighborhood logGrLiv*Neighborhood / solution clparm;
+run;
+/*WORKING MODEL*/
+
+proc reg data=loghouses outest=cooks;
+  by Neighborhood;
+  model logSalePrice = logGrLiv / stb clb;
 run;
 
+proc reg data=loghouses plots(only)=DFBetas;
+  by Neighborhood;
+  model logSalePrice = logGrLiv / stb clb;
+run;
+
+
+data restricted_data;
+  set loghouses;
+  where GrLivArea >= 1000 and GrLivArea <= 3250;
+  where SalePrice >= 75000 and SalePrice <= 150000;
+run;
+data loghouses;
+set filtered_houses;
+logGrLiv = log(GrLivArea);
+logSalePrice = log(SalePrice);
+;
+
+proc glm data = restricted_data plots=all;
+class Neighborhood (REF = "BrkSide");
+model logSalePrice = logGrLiv Neighborhood logGrLiv*Neighborhood / solution clparm;
+run;
+proc reg data=restricted_data plots(only)=DFBetas;
+  by Neighborhood;
+  model logSalePrice = logGrLiv / stb clb;
+run;
+proc sgscatter data = restricted_data;
+by Neighborhood;
+matrix logSalePrice logGrLiv;
+run;
+
+
+
+
+
+
+
+
+
+
+/*NON-FINAL__________________TEST CODE________________NON-FINAL*/
 
 /* Creating a new variable 'GrLivArea_100' for GrLivArea in increments of 100 sq. ft. */
 data filtered_houses;
@@ -112,17 +163,3 @@ proc glm data=filtered_houses plots=all;
     model SalePrice_log = GrLivArea_log Neighborhood GrLivArea_log*Neighborhood / solution;
 run;
 
-
-
-/* chat gpt*/
-/* Step 2: Create a new variable 'GrLivArea_100' for GrLivArea in increments of 100 sq. ft. */
-data filtered_houses;
-    set filtered_houses;
-    GrLivArea_100 = floor(GrLivArea / 100) * 100;
-run;
-
-/* Step 3: Fit the multiple linear regression model with interaction term */
-proc glm data=filtered_houses plots=all;
-    class Neighborhood; /* No need to set a reference level */
-    model SalePrice = GrLivArea_100 Neighborhood GrLivArea_100*Neighborhood / solution;
-run;
