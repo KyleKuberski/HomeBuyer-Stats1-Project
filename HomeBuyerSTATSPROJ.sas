@@ -42,6 +42,29 @@ proc sgplot data=filtered_houses;
     by Neighborhood;
 run;
 
+proc sgscatter data = filtered_houses;
+by Neighborhood;
+matrix SalePrice GrLivArea;
+run;
+
+data loghouses;
+set filtered_houses;
+logGrLiv = log(GrLivArea);
+logSalePrice = log(SalePrice);
+;
+
+proc sgscatter data = loghouses;
+by Neighborhood;
+matrix logSalePrice logGrLiv;
+run;
+
+/* Fit the model */
+proc glm data = loghouses plots=all;
+class Neighborhood;
+model logSalePrice = logGrLiv Neighborhood / solution clparm;
+run;
+
+
 /* Creating a new variable 'GrLivArea_100' for GrLivArea in increments of 100 sq. ft. */
 data filtered_houses;
     set filtered_houses;
@@ -89,3 +112,17 @@ proc glm data=filtered_houses plots=all;
     model SalePrice_log = GrLivArea_log Neighborhood GrLivArea_log*Neighborhood / solution;
 run;
 
+
+
+/* chat gpt*/
+/* Step 2: Create a new variable 'GrLivArea_100' for GrLivArea in increments of 100 sq. ft. */
+data filtered_houses;
+    set filtered_houses;
+    GrLivArea_100 = floor(GrLivArea / 100) * 100;
+run;
+
+/* Step 3: Fit the multiple linear regression model with interaction term */
+proc glm data=filtered_houses plots=all;
+    class Neighborhood; /* No need to set a reference level */
+    model SalePrice = GrLivArea_100 Neighborhood GrLivArea_100*Neighborhood / solution;
+run;
