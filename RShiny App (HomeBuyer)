@@ -1,0 +1,48 @@
+#
+# This is a Shiny web application. You can run the application by clicking
+# the 'Run App' button above.
+#
+# Find out more about building applications with Shiny here:
+#
+#    http://shiny.rstudio.com/
+#
+
+library(shiny)
+library(ggplot2)
+library(readr)
+
+ui <- fluidPage(
+  titlePanel("House Price vs. Square Footage"),
+  sidebarLayout(
+    sidebarPanel(
+      fileInput("datafile", "Choose a CSV file with data"),
+      checkboxGroupInput("neighborhoods", "Select Neighborhoods:",
+                         choices = c("NAmes", "Edwards", "BrkSide"),
+                         selected = c("NAmes", "Edwards", "BrkSide")
+      )
+    ),
+    mainPanel(
+      plotOutput("scatterplot")
+    )
+  )
+)
+
+server <- function(input, output) {
+  data <- reactive({
+    req(input$datafile)
+    read_csv(input$datafile$datapath)
+  })
+  
+  output$scatterplot <- renderPlot({
+    req(data())
+    filtered_data <- subset(data(), Neighborhood %in% input$neighborhoods)
+    ggplot(filtered_data, aes(x = GrLivArea, y = SalePrice, color = Neighborhood)) +
+      geom_point() +
+      xlab("Living Area SqFt") +
+      ylab("Sales Price") +
+      ggtitle("Living Area SqFt vs Sales Price") +
+      theme_minimal()
+  })
+}
+
+shinyApp(ui, server)
