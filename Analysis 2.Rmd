@@ -1,0 +1,280 @@
+---
+title: "Project-Stat"
+author: "Pejal Rath"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+library(caret)
+library(olsrr)
+library(tidyverse)
+
+#----------------Import Training Data and Clean it up because there are so many NA in certain Column--------------------
+df = read.csv(file.choose(), header = TRUE)
+
+df$MSZoning <- as.factor(df$MSZoning)
+df$Street <- as.factor(df$Street)
+df$Alley <- as.factor(df$Alley)
+df$LotShape <- as.factor(df$LotShape)
+df$LandContour <- as.factor(df$LandContour)
+df$Utilities <- as.factor(df$Utilities)
+df$LotConfig <- as.factor(df$LotConfig)
+df$LandSlope <- as.factor(df$LandSlope)
+df$Neighborhood <- as.factor(df$Neighborhood)
+df$Condition1 <- as.factor(df$Condition1)
+df$Condition2 <- as.factor(df$Condition2)
+df$BldgType <- as.factor(df$BldgType)
+df$HouseStyle <- as.factor(df$HouseStyle)
+df$RoofStyle <- as.factor(df$RoofStyle)
+df$RoofMatl <- as.factor(df$RoofMatl)
+df$Exterior1st <- as.factor(df$Exterior1st)
+df$Exterior2nd <- as.factor(df$Exterior2nd)
+df$MasVnrType <- as.factor(df$MasVnrType)
+df$ExterQual <- as.factor(df$ExterQual)
+df$ExterCond <- as.factor(df$ExterCond)
+df$Foundation <- as.factor(df$Foundation)
+df$BsmtQual <- as.factor(df$BsmtQual)
+df$BsmtCond <- as.factor(df$BsmtCond)
+df$BsmtExposure <- as.factor(df$BsmtExposure)
+df$BsmtFinType1 <- as.factor(df$BsmtFinType1)
+df$BsmtFinType2 <- as.factor(df$BsmtFinType2)
+df$Heating <- as.factor(df$Heating)
+df$HeatingQC <- as.factor(df$HeatingQC)
+df$CentralAir <- as.factor(df$CentralAir)
+df$Electrical <- as.factor(df$Electrical)
+df$KitchenQual <- as.factor(df$KitchenQual)
+df$Functional <- as.factor(df$Functional)
+df$FireplaceQu <- as.factor(df$FireplaceQu)
+df$GarageType <- as.factor(df$GarageType)
+df$GarageFinish <- as.factor(df$GarageFinish)
+df$GarageQual <- as.factor(df$GarageQual)
+df$GarageCond <- as.factor(df$GarageCond)
+df$PavedDrive <- as.factor(df$PavedDrive)
+df$PoolQC <- as.factor(df$PoolQC)
+df$Fence <- as.factor(df$Fence)
+df$MiscFeature <- as.factor(df$MiscFeature)
+df$SaleType <- as.factor(df$SaleType)
+df$SaleCondition <- as.factor(df$SaleCondition)
+
+df_subset <- df[, -which(names(df) == "Id")]
+
+
+# Remove Id,Alley, Utilities , X3SsnPorch , PoolQC , Fence , MiscFeature            
+
+# Clean data
+# Fill in columns with NA value
+column_with_na1 <- c("MSSubClass", "MSZoning", "LotFrontage", "LotArea", "Street",
+                    "LotShape", "LandContour", "LotConfig", "LandSlope", "Neighborhood",
+                    "Condition1", "Condition2", "BldgType", "HouseStyle", "OverallQual",
+                    "OverallCond", "YearBuilt", "YearRemodAdd", "RoofStyle", "RoofMatl",
+                    "Exterior1st", "Exterior2nd", "MasVnrType", "MasVnrArea", "ExterQual",
+                    "ExterCond", "Foundation", "BsmtQual", "BsmtCond", "BsmtExposure",
+                    "BsmtFinType1", "BsmtFinSF1", "BsmtFinType2", "BsmtFinSF2", "BsmtUnfSF",
+                    "TotalBsmtSF", "Heating", "HeatingQC", "CentralAir", "Electrical",
+                    "X1stFlrSF", "X2ndFlrSF", "LowQualFinSF", "GrLivArea", "BsmtFullBath",
+                    "BsmtHalfBath", "FullBath", "HalfBath", "BedroomAbvGr", "KitchenAbvGr",
+                    "KitchenQual", "TotRmsAbvGrd", "Functional", "Fireplaces", "FireplaceQu",
+                    "GarageType", "GarageYrBlt", "GarageFinish", "GarageCars", "GarageArea",
+                    "GarageQual", "GarageCond", "PavedDrive", "WoodDeckSF", "OpenPorchSF",
+                    "EnclosedPorch", "ScreenPorch", "PoolArea", "MiscVal", "MoSold", "YrSold",
+                    "SaleType", "SaleCondition")
+# For categorical columns, fill NA with the most common category and For continuous columns, fill NA with the average value
+for (col in column_with_na1) {
+  if (is.factor(df_subset[[col]])) {
+    common_value <- levels(df_subset[[col]])[which.max(table(df_subset[[col]]))]
+    df_subset[[col]][is.na(df_subset[[col]])] <- common_value
+  } else {
+    avg_value <- mean(df_subset[[col]], na.rm = TRUE)
+    df_subset[[col]][is.na(df_subset[[col]])] <- avg_value
+  }
+}
+#----------------End Import Training Data and Clean it up because there are so many NA in certain Column--------------------
+
+
+#---------------------------------Remove High Leverage data from training set---------------------------------
+
+# Fit the linear regression model
+model <- lm(SalePrice ~ OverallQual+ TotRmsAbvGrd +PoolArea+ Fireplaces+ GarageCars+ FullBath, data = df_subset)
+
+# Calculate leverage values
+leverage <- hatvalues(model)
+
+# Define a threshold for high leverage
+leverage_threshold <- 0.005
+
+# Identify high leverage observations
+high_leverage_obs <- which(leverage > leverage_threshold)
+
+# Create a new dataset excluding high leverage observations
+data_filtered <- df_subset[-high_leverage_obs, ]
+
+write.csv(data_filtered, file = "C:/Users/pejal/OneDrive/Desktop/SMU/Classes/Summer 2023/Stat/project/removehighleverage_data.csv", row.names = FALSE)
+#---------------------------------End Remove High Leverage data from training set---------------------------------
+
+#----------------Import Test Data and Clean it up because there are so many NA in certain Column-------------------------------------------------------------
+df_test <- read.csv(file.choose(), header = TRUE)
+
+#columns_with_more_than_100_levels <- sapply(df_test, function(column) nlevels(column) > 100)
+
+df_test$MSZoning <- as.factor(df_test$MSZoning)
+df_test$Street <- as.factor(df_test$Street)
+df_test$Alley <- as.factor(df_test$Alley)
+df_test$LotShape <- as.factor(df_test$LotShape)
+df_test$LandContour <- as.factor(df_test$LandContour)
+df_test$Utilities <- as.factor(df_test$Utilities)
+df_test$LotConfig <- as.factor(df_test$LotConfig)
+df_test$LandSlope <- as.factor(df_test$LandSlope)
+df_test$Neighborhood <- as.factor(df_test$Neighborhood)
+df_test$Condition1 <- as.factor(df_test$Condition1)
+df_test$Condition2 <- as.factor(df_test$Condition2)
+df_test$BldgType <- as.factor(df_test$BldgType)
+df_test$HouseStyle <- as.factor(df_test$HouseStyle)
+df_test$RoofStyle <- as.factor(df_test$RoofStyle)
+df_test$RoofMatl <- as.factor(df_test$RoofMatl)
+df_test$Exterior1st <- as.factor(df_test$Exterior1st)
+df_test$Exterior2nd <- as.factor(df_test$Exterior2nd)
+df_test$MasVnrType <- as.factor(df_test$MasVnrType)
+df_test$ExterQual <- as.factor(df_test$ExterQual)
+df_test$ExterCond <- as.factor(df_test$ExterCond)
+df_test$Foundation <- as.factor(df_test$Foundation)
+df_test$BsmtQual <- as.factor(df_test$BsmtQual)
+df_test$BsmtCond <- as.factor(df_test$BsmtCond)
+df_test$BsmtExposure <- as.factor(df_test$BsmtExposure)
+df_test$BsmtFinType1 <- as.factor(df_test$BsmtFinType1)
+df_test$BsmtFinType2 <- as.factor(df_test$BsmtFinType2)
+df_test$Heating <- as.factor(df_test$Heating)
+df_test$HeatingQC <- as.factor(df_test$HeatingQC)
+df_test$CentralAir <- as.factor(df_test$CentralAir)
+df_test$Electrical <- as.factor(df_test$Electrical)
+df_test$KitchenQual <- as.factor(df_test$KitchenQual)
+df_test$Functional <- as.factor(df_test$Functional)
+df_test$FireplaceQu <- as.factor(df_test$FireplaceQu)
+df_test$GarageType <- as.factor(df_test$GarageType)
+df_test$GarageFinish <- as.factor(df_test$GarageFinish)
+df_test$GarageQual <- as.factor(df_test$GarageQual)
+df_test$GarageCond <- as.factor(df_test$GarageCond)
+df_test$PavedDrive <- as.factor(df_test$PavedDrive)
+df_test$PoolQC <- as.factor(df_test$PoolQC)
+df_test$Fence <- as.factor(df_test$Fence)
+df_test$MiscFeature <- as.factor(df_test$MiscFeature)
+df_test$SaleType <- as.factor(df_test$SaleType)
+df_test$SaleCondition <- as.factor(df_test$SaleCondition)
+
+
+column_with_na1 <- c("MSSubClass", "MSZoning", "LotFrontage", "LotArea", "Street",
+                    "LotShape", "LandContour", "LotConfig", "LandSlope", "Neighborhood",
+                    "Condition1", "Condition2", "BldgType", "HouseStyle", "OverallQual",
+                    "OverallCond", "YearBuilt", "YearRemodAdd", "RoofStyle", "RoofMatl",
+                    "Exterior1st", "Exterior2nd", "MasVnrType", "MasVnrArea", "ExterQual",
+                    "ExterCond", "Foundation", "BsmtQual", "BsmtCond", "BsmtExposure",
+                    "BsmtFinType1", "BsmtFinSF1", "BsmtFinType2", "BsmtFinSF2", "BsmtUnfSF",
+                    "TotalBsmtSF", "Heating", "HeatingQC", "CentralAir", "Electrical",
+                    "X1stFlrSF", "X2ndFlrSF", "LowQualFinSF", "GrLivArea", "BsmtFullBath",
+                    "BsmtHalfBath", "FullBath", "HalfBath", "BedroomAbvGr", "KitchenAbvGr",
+                    "KitchenQual", "TotRmsAbvGrd", "Functional", "Fireplaces", "FireplaceQu",
+                    "GarageType", "GarageYrBlt", "GarageFinish", "GarageCars", "GarageArea",
+                    "GarageQual", "GarageCond", "PavedDrive", "WoodDeckSF", "OpenPorchSF",
+                    "EnclosedPorch", "ScreenPorch", "PoolArea", "MiscVal", "MoSold", "YrSold",
+                    "SaleType", "SaleCondition")
+# For categorical columns, fill NA with the most common category and For continuous columns, fill NA with the average value
+for (col in column_with_na1) {
+  if (is.factor(df_test[[col]])) {
+    common_value <- levels(df_test[[col]])[which.max(table(df_test[[col]]))]
+    df_test[[col]][is.na(df_test[[col]])] <- common_value
+  } else {
+    avg_value <- mean(df_test[[col]], na.rm = TRUE)
+    df_test[[col]][is.na(df_test[[col]])] <- avg_value
+  }
+}
+
+#----------------------------End Clean up of Test Data-------------------------------------------------
+
+#Predict Formula and Write to CSV Files
+#Forward 1
+fit_forward1=lm(SalePrice ~ OverallQual+Neighborhood+TotRmsAbvGrd+BsmtExposure+PoolArea+KitchenQual+ Fireplaces+ GarageCars+ BldgType+ FullBath+ BsmtFinType1+ BsmtQual+ SaleCondition, data = df_subset)
+predicted_sale_price_forward1 <- predict(fit_forward1, newdata = df_test)
+df_f1 <- data.frame(Id = df_test$Id, SalePrice = predicted_sale_price_forward1)
+write.csv(df_f1, file = "C:/Users/pejal/OneDrive/Desktop/SMU/Classes/Summer 2023/Stat/project/forward.csv", row.names = FALSE)
+
+#Forward 1 RH
+fit_forward1_RH=lm(SalePrice ~ OverallQual + Neighborhood + TotRmsAbvGrd + BsmtExposure + KitchenQual + Fireplaces + GarageCars + BldgType + FullBath + BsmtQual + BsmtFullBath + CentralAir + HalfBath + FireplaceQu + GarageFinish, data = data_filtered)
+predicted_sale_price_forward1_RH <- predict(fit_forward1_RH, newdata = df_test)
+df_f1_RH <- data.frame(Id = df_test$Id, SalePrice = predicted_sale_price_forward1_RH)
+write.csv(df_f1_RH, file = "C:/Users/pejal/OneDrive/Desktop/SMU/Classes/Summer 2023/Stat/project/forward_RH.csv", row.names = FALSE)
+
+#Backward 2
+fit_backward1=lm(SalePrice ~OverallQual + Neighborhood + TotRmsAbvGrd + BsmtExposure + PoolArea + KitchenQual + Fireplaces + GarageCars + BldgType + FullBath + BsmtFinType1 + BsmtQual, data = df_subset)
+predicted_sale_price_backward1 <- predict(fit_backward1, newdata = df_test)
+df_b1 <- data.frame(Id = df_test$Id, SalePrice = predicted_sale_price_backward1)
+write.csv(df_b1, file = "C:/Users/pejal/OneDrive/Desktop/SMU/Classes/Summer 2023/Stat/project/backward.csv", row.names = FALSE)
+
+#Backward 2 RH
+fit_backward1_RH=lm(SalePrice ~ OverallQual + Neighborhood + TotRmsAbvGrd + BsmtExposure + KitchenQual + Fireplaces + GarageCars + BldgType + FullBath + BsmtQual + BsmtFinType1 + SaleCondition, data = data_filtered)
+predicted_sale_price_backward1_RH <- predict(fit_backward1_RH, newdata = df_test)
+df_b1_RH <- data.frame(Id = df_test$Id, SalePrice = predicted_sale_price_backward1_RH)
+write.csv(df_b1_RH, file = "C:/Users/pejal/OneDrive/Desktop/SMU/Classes/Summer 2023/Stat/project/backward_RH.csv", row.names = FALSE)
+
+#Stepwise 3
+fit_stepwise1=lm(SalePrice ~ OverallQual + Neighborhood + TotRmsAbvGrd + BsmtExposure + PoolArea + KitchenQual + Fireplaces + GarageCars + BldgType + FullBath + BsmtFinType1 + BsmtQual, data = df_subset)
+predicted_sale_price_stepwise1 <- predict(fit_stepwise1, newdata = df_test)
+df_s1 <- data.frame(Id = df_test$Id, SalePrice = predicted_sale_price_stepwise1)
+write.csv(df_s1, file = "C:/Users/pejal/OneDrive/Desktop/SMU/Classes/Summer 2023/Stat/project/stepwise.csv", row.names = FALSE)
+
+#Stepwise 3 RH
+fit_stepwise1_RH=lm(SalePrice ~ OverallQual + Neighborhood + TotRmsAbvGrd + BsmtExposure + KitchenQual + Fireplaces + GarageCars + BldgType + FullBath + BsmtQual + BsmtFullBath + CentralAir + HalfBath + FireplaceQu + GarageFinish, data = data_filtered)
+predicted_sale_price_stepwise1_RH <- predict(fit_stepwise1_RH, newdata = df_test)
+df_s1_RH <- data.frame(Id = df_test$Id, SalePrice = predicted_sale_price_stepwise1_RH)
+write.csv(df_s1_RH, file = "C:/Users/pejal/OneDrive/Desktop/SMU/Classes/Summer 2023/Stat/project/stepwise_RH.csv", row.names = FALSE)
+
+#Custom 4
+
+fit_1=lm(SalePrice ~ Neighborhood + TotRmsAbvGrd + BsmtExposure + KitchenQual + Fireplaces + GarageCars + FireplaceQu + OverallQual * FullBath, data = df_subset)
+predicted_sale_price_1 <- predict(fit_1, newdata = df_test)
+df_c1 <- data.frame(Id = df_test$Id, SalePrice = predicted_sale_price_1)
+write.csv(df_c1, file = "C:/Users/pejal/OneDrive/Desktop/SMU/Classes/Summer 2023/Stat/project/custom.csv", row.names = FALSE)
+
+#Custom 4 RH
+fit_1_RH=lm(SalePrice ~ OverallQual + Neighborhood + TotRmsAbvGrd + BsmtExposure + KitchenQual + Fireplaces + GarageCars + BldgType + FullBath + BsmtQual + BsmtFullBath + CentralAir + HalfBath + FireplaceQu + GarageFinish, data = data_filtered)
+predicted_sale_price_1_RH <- predict(fit_1_RH, newdata = df_test)
+df_c1_RH <- data.frame(Id = df_test$Id, SalePrice = predicted_sale_price_1_RH)
+write.csv(df_c1_RH, file = "C:/Users/pejal/OneDrive/Desktop/SMU/Classes/Summer 2023/Stat/project/custom_RH.csv", row.names = FALSE)
+
+
+
+#----------------------------------------SAS CODE--------------------------------------------------------------------
+<!-- data mydata; -->
+<!-- infile "/home/u63404840/Mydata/clean_data.csv" dlm=','; /* Specify the path to your CSV file */ -->
+<!-- input MSSubClass MSZoning$ LotFrontage LotArea Street$ Alley$ LotShape$ LandContour$ Utilities$ LotConfig$ LandSlope$ Neighborhood$ Condition1$ Condition2$ BldgType$ HouseStyle$ OverallQual OverallCond YearBuilt$ YearRemodAdd$ RoofStyle$ RoofMatl$ Exterior1st$ Exterior2nd$ MasVnrType$ MasVnrArea$ ExterQual$ ExterCond$ Foundation$ BsmtQual$ BsmtCond$ BsmtExposure$ BsmtFinType1$ BsmtFinSF1$ BsmtFinType2$ BsmtFinSF2$ BsmtUnfSF$ TotalBsmtSF$ Heating$ HeatingQC$ CentralAir$ Electrical$ X1stFlrSF$ X2ndFlrSF$ LowQualFinSF$ GrLivArea$ BsmtFullBath$ BsmtHalfBath$ FullBath HalfBath$ BedroomAbvGr$ KitchenAbvGr$ KitchenQual$ TotRmsAbvGrd Functional$ Fireplaces FireplaceQu$ GarageType$ GarageYrBlt$ GarageFinish$ GarageCars GarageArea$ GarageQual$ GarageCond$ PavedDrive$ WoodDeckSF$ OpenPorchSF$ EnclosedPorch$ X3SsnPorch$ ScreenPorch$ PoolArea PoolQC$ Fence$ MiscFeature$ MiscVal$ MoSold$ YrSold$ SaleType$ SaleCondition$ SalePrice; -->
+<!-- run; -->
+
+<!-- #Forward -->
+<!-- proc glmselect data=mydata seed=694623671; -->
+<!-- class MSSubClass MSZoning LotFrontage LotArea Street LotShape LandContour LotConfig LandSlope Neighborhood Condition1 Condition2 BldgType HouseStyle OverallQual OverallCond YearBuilt YearRemodAdd RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType MasVnrArea ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinSF1 BsmtFinType2 BsmtFinSF2 BsmtUnfSF TotalBsmtSF Heating HeatingQC CentralAir Electrical X1stFlrSF X2ndFlrSF LowQualFinSF GrLivArea BsmtFullBath BsmtHalfBath FullBath HalfBath BedroomAbvGr KitchenAbvGr KitchenQual TotRmsAbvGrd Functional Fireplaces FireplaceQu GarageType GarageYrBlt GarageFinish GarageCars GarageArea GarageQual GarageCond PavedDrive WoodDeckSF OpenPorchSF EnclosedPorch ScreenPorch PoolArea MiscVal MoSold YrSold SaleType SaleCondition; -->
+<!-- model SalePrice = MSSubClass MSZoning LotFrontage LotArea Street LotShape LandContour LotConfig LandSlope Neighborhood Condition1 Condition2 BldgType HouseStyle OverallQual OverallCond YearBuilt YearRemodAdd RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType MasVnrArea ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinSF1 BsmtFinType2 BsmtFinSF2 BsmtUnfSF TotalBsmtSF Heating HeatingQC CentralAir Electrical X1stFlrSF X2ndFlrSF LowQualFinSF GrLivArea BsmtFullBath BsmtHalfBath FullBath HalfBath BedroomAbvGr KitchenAbvGr KitchenQual TotRmsAbvGrd Functional Fireplaces FireplaceQu GarageType GarageYrBlt GarageFinish GarageCars GarageArea GarageQual GarageCond PavedDrive WoodDeckSF OpenPorchSF EnclosedPorch ScreenPorch PoolArea MiscVal MoSold YrSold SaleType SaleCondition / selection=Forward(stop=CV) cvmethod=random(5) stats=adjrsq; -->
+<!-- run; -->
+
+<!-- #Backward -->
+<!-- proc glmselect data=mydata seed=556753002; -->
+<!-- class MSSubClass MSZoning LotFrontage LotArea Street LotShape LandContour LotConfig LandSlope Neighborhood Condition1 Condition2 BldgType HouseStyle OverallQual OverallCond YearBuilt YearRemodAdd RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType MasVnrArea ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinSF1 BsmtFinType2 BsmtFinSF2 BsmtUnfSF TotalBsmtSF Heating HeatingQC CentralAir Electrical X1stFlrSF X2ndFlrSF LowQualFinSF GrLivArea BsmtFullBath BsmtHalfBath FullBath HalfBath BedroomAbvGr KitchenAbvGr KitchenQual TotRmsAbvGrd Functional Fireplaces FireplaceQu GarageType GarageYrBlt GarageFinish GarageCars GarageArea GarageQual GarageCond PavedDrive WoodDeckSF OpenPorchSF EnclosedPorch ScreenPorch PoolArea MiscVal MoSold YrSold SaleType SaleCondition; -->
+<!-- model SalePrice =OverallQual Neighborhood TotRmsAbvGrd BsmtExposure PoolArea KitchenQual Fireplaces GarageCars BldgType FullBath BsmtFinType1 BsmtQual SaleCondition Condition2/ selection=Backward(stop=CV) cvmethod=random(5) stats=adjrsq; -->
+<!-- run; -->
+
+<!-- #Stepwise -->
+<!-- proc glmselect data=mydata seed=955180600 ; -->
+<!-- class MSSubClass MSZoning LotFrontage LotArea Street LotShape LandContour LotConfig LandSlope Neighborhood Condition1 Condition2 BldgType HouseStyle OverallQual OverallCond YearBuilt YearRemodAdd RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType MasVnrArea ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinSF1 BsmtFinType2 BsmtFinSF2 BsmtUnfSF TotalBsmtSF Heating HeatingQC CentralAir Electrical X1stFlrSF X2ndFlrSF LowQualFinSF GrLivArea BsmtFullBath BsmtHalfBath FullBath HalfBath BedroomAbvGr KitchenAbvGr KitchenQual TotRmsAbvGrd Functional Fireplaces FireplaceQu GarageType GarageYrBlt GarageFinish GarageCars GarageArea GarageQual GarageCond PavedDrive WoodDeckSF OpenPorchSF EnclosedPorch ScreenPorch PoolArea MiscVal MoSold YrSold SaleType SaleCondition; -->
+<!-- model SalePrice = MSSubClass MSZoning LotFrontage LotArea Street LotShape LandContour LotConfig LandSlope Neighborhood Condition1 Condition2 BldgType HouseStyle OverallQual OverallCond YearBuilt YearRemodAdd RoofStyle RoofMatl Exterior1st Exterior2nd MasVnrType MasVnrArea ExterQual ExterCond Foundation BsmtQual BsmtCond BsmtExposure BsmtFinType1 BsmtFinSF1 BsmtFinType2 BsmtFinSF2 BsmtUnfSF TotalBsmtSF Heating HeatingQC CentralAir Electrical X1stFlrSF X2ndFlrSF LowQualFinSF GrLivArea BsmtFullBath BsmtHalfBath FullBath HalfBath BedroomAbvGr KitchenAbvGr KitchenQual TotRmsAbvGrd Functional Fireplaces FireplaceQu GarageType GarageYrBlt GarageFinish GarageCars GarageArea GarageQual GarageCond PavedDrive WoodDeckSF OpenPorchSF EnclosedPorch ScreenPorch PoolArea MiscVal MoSold YrSold SaleType SaleCondition / selection=Stepwise(stop=CV) cvmethod=random(5) stats=adjrsq; -->
+<!-- run; -->
+
+
+<!-- #Custome -->
+<!-- proc glmselect data=mydata seed=694623671; -->
+<!-- class OverallQual Neighborhood TotRmsAbvGrd BsmtExposure KitchenQual Fireplaces GarageCars BldgType FullBath  BsmtQual BsmtFullBath CentralAir HalfBath FireplaceQu GarageFinish; -->
+<!-- model SalePrice = FireplaceQu BsmtQual BsmtFullBath CentralAir BsmtExposure Fireplaces GarageCars OverallQual | Neighborhood | TotRmsAbvGrd | KitchenQual | BldgType | FullBath | HalfBath | GarageFinish / selection=Forward(stop=CV) cvmethod=random(5) stats=adjrsq; -->
+<!-- run; -->
+
+
+
